@@ -1,5 +1,5 @@
 /**
-* Author: [Your name here]
+* Author: Eric Cheung
 * Assignment: Simple 2D Scene
 * Date due: 2025-09-27, 11:59pm
 * I pledge that I have completed this assignment without
@@ -218,7 +218,7 @@ void render()
         RenderObject(&gAsteroidTexture, &asteroidSource, &gAsteroidPositions[i],
                     &asteroidScale, rotation);
     }
-    
+
     Vector2 ufoScale = { gUFOSize, gUFOSize };
     RenderObject(&gUFOTexture, &ufoSource, &gUFOPosition,
                 &ufoScale, 0.0f);
