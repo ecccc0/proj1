@@ -82,7 +82,8 @@ def main():
     # main simulation loop
     while running:
         current_pc = pc
-        instr = mem[current_pc]
+        instr_addr = pc & 0b1111111111111
+        instr = mem[instr_addr]
         # handle 13-bit PC wraparound later
         pc += 1 
         opcode = (instr >> 13) & 0b111
@@ -92,24 +93,24 @@ def main():
             if opcode == 0b000:
                 result = None
                 # lass 4 bits
-                func = instr % 0b1111
+                func = instr & 0b1111
                 # 3 register fileds
                 regSrcA = (instr >> 10) & 0b111
                 regSrcB = (instr >> 7) & 0b111
                 regDst = (instr >> 4) & 0b111
                 if func == 0b0000: # add
-                    regs[regDst] = (regs[regSrcA] + regs[regSrcB])
+                    regs[regDst] = (regs[regSrcA] + regs[regSrcB]) & 0xFFFF
                 elif func == 0b0001: # sub
-                    regs[regDst] = (regs[regSrcA] - regs[regSrcB])
+                    regs[regDst] = (regs[regSrcA] - regs[regSrcB]) & 0xFFFF
                 elif func == 0b0010: # or
-                    regs[regDst] = (regs[regSrcA] | regs[regSrcB])
+                    regs[regDst] = (regs[regSrcA] | regs[regSrcB]) & 0xFFFF
                 elif func == 0b0011: # and
-                    regs[regDst] = (regs[regSrcA] & regs[regSrcB])
+                    regs[regDst] = (regs[regSrcA] & regs[regSrcB]) & 0xFFFF
                 elif func == 0b0100: # slt (unsigned)
                     valA = regs[regSrcA] & 0b1111111111111111
                     valB = regs[regSrcB] & 0b1111111111111111
                     result = 1 if valA < valB else 0
-                elif func == 0b0101: # jr
+                elif func == 0b1000: # jr
                     pc = regs[regSrcA]
                     result = None
                 else:
@@ -117,7 +118,7 @@ def main():
                 
                 # write result to regdest unless it's $0
                 if regDst != 0 and result is not None:
-                    regs[regDst] = result & 0b1111111111111111
+                    regs[regDst] = result
             elif opcode == 0b001: # addi
                 regSrc = (instr >> 10) & 0b111
                 regDst = (instr >> 7) & 0b111
@@ -126,9 +127,9 @@ def main():
                 if (imm7 >> 6) & 0b1:
                     imm7 -= 128
                 
-                result = regs[regSrc] + imm7
+                result = (regs[regSrc] + imm7) & 0xFFFF
                 if regDst != 0:
-                    regs[regDst] = result & 0b1111111111111111
+                    regs[regDst] = result
             elif opcode == 0b010: # j
                 imm13 = instr & 0b1111111111111
                 if imm13 == current_pc:
@@ -185,11 +186,11 @@ def main():
                 if (imm7 >> 6) & 0b1:
                     imm7 -= 128
                 # unsigned comparison
-                valSrc = regs[regSrc] & 0b1111111111111111
-                valImm = imm7 & 0b1111111111111111
+                valSrc = regs[regSrc] & 0xFFFF
+                valImm = imm7 & 0xFFFF
                 result = 1 if valSrc < valImm else 0
                 if regDst != 0:
-                    regs[regDst] = result & 0b1111111111111111
+                    regs[regDst] = result
             
             # always ensure $0 is zero
             regs[0] = 0
