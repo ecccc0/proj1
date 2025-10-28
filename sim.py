@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# Eric Cheung
 
 """
 CS-UY 2214
@@ -66,13 +67,144 @@ def main():
     parser.add_argument('filename', help='The file containing machine code, typically with .bin suffix')
     cmdline = parser.parse_args()
 
+    mem = [0] * constants.MEM_SIZE
     with open(cmdline.filename) as file:
-        pass # TODO: your code here. Load file and parse using load_machine_code
+        # TODO: your code here. Load file and parse using load_machine_code
+        load_machine_code(file, mem)
 
     # TODO: your code here. Do simulation.
 
+    # initialize processor state
+    pc = 0
+    regs = [0] * constants.NUM_REGS
+    running = True
+     
+    # main simulation loop
+    while running:
+        current_pc = pc
+        instr = mem[current_pc]
+        # handle 13-bit PC wraparound later
+        pc += 1 
+        opcode = (instr >> 13) & 0b111
+
+        try:
+            # (and sub or and slt jr)
+            if opcode == 0b000:
+                # lass 4 bits
+                func = instr % 0b1111
+                # 3 register fileds
+                regSrcA = (instr >> 10) & 0b111
+                regSrcB = (instr >> 7) & 0b111
+                regDst = (instr >> 4) & 0b111
+                if func == 0b0000: # add
+                    regs[regDst] = (regs[regSrcA] + regs[regSrcB])
+                elif func == 0b0001: # sub
+                    regs[regDst] = (regs[regSrcA] - regs[regSrcB])
+                elif func == 0b0010: # or
+                    regs[regDst] = (regs[regSrcA] | regs[regSrcB])
+                elif func == 0b0011: # and
+                    regs[regDst] = (regs[regSrcA] & regs[regSrcB])
+                elif func == 0b0100: # slt (unsigned)
+                    valA = regs[regSrcA] & 0b1111111111111111
+                    valB = regs[regSrcB] & 0b1111111111111111
+                    result = 1 if valA < valB else 0
+                elif func == 0b0101: # jr
+                    pc = regs[regSrcA]
+                    result = None
+                else:
+                    result = None
+                
+                # write result to regdest unless it's $0
+                if regDst != 0 and result is not None:
+                    regs[regDst] = result & 0b1111111111111111
+            elif opcode == 0b001: # addi
+                regSrc = (instr >> 10) & 0b111
+                regDst = (instr >> 7) & 0b111
+                imm7 = instr & 0b1111111
+                # sign extend imm7 to 16 bits
+                if (imm7 >> 6) & 0b1:
+                    imm7 -= 128
+                
+                result = regs[regSrc] + imm7
+                if regDst != 0:
+                    regs[regDst] = result & 0b1111111111111111
+            elif opcode == 0b010: # j
+                imm13 = instr & 0b1111111111111
+                if imm13 == current_pc:
+                    # halt
+                    running = False
+                    pc = current_pc
+                else:
+                    pc = imm13
+            elif opcode == 0b011: # jal
+                imm13 = instr & 0b1111111111111
+                regs[7] = pc
+                pc = imm13
+            elif opcode == 0b100: # lw
+                regAddr = (instr >> 10) & 0b111
+                regDst = (instr >> 7) & 0b111
+                imm7 = instr & 0b1111111
+
+                # sign extend imm7
+                if (imm7 >> 6) & 0b1:
+                    imm7 -= 128
+                
+                # calculate address and wrap to 13 bits
+                addr = (regs[regAddr] + imm7) & 0b11111111111111
+                if regDst != 0:
+                    regs[regDst] = mem[addr] & 0b1111111111111111
+            elif opcode == 0b101: # sw
+                regAddr = (instr >> 10) & 0b111
+                regSrc = (instr >> 7) & 0b111
+                imm7 = instr & 0b1111111
+
+                # sign extend imm7
+                if (imm7 >> 6) & 0b1:
+                    imm7 -= 128
+                
+                # calculate address and wrap to 13 bits
+                addr = (regs[regAddr] + imm7) & 0b11111111111111
+                mem[addr] = regs[regSrc] & 0b1111111111111111
+            elif opcode == 0b110: # jeq
+                regA = (instr >> 10) & 0b111
+                regB = (instr >> 7) & 0b111
+                imm7 = instr & 0b1111111
+
+                # sign extend imm7
+                if (imm7 >> 6) & 0b1:
+                    imm7 -= 128
+                if regs[regA] == regs[regB]:
+                    pc = (pc + imm7)
+            elif opcode == 0b111: # slti
+                regSrc = (instr >> 10) & 0b111
+                regDst = (instr >> 7) & 0b111
+                imm7 = instr & 0b1111111
+
+                # sign extend imm7
+                if (imm7 >> 6) & 0b1:
+                    imm7 -= 128
+                # unsigned comparison
+                valSrc = regs[regSrc] & 0b1111111111111111
+                valImm = imm7 & 0b1111111111111111
+                result = 1 if valSrc < valImm else 0
+                if regDst != 0:
+                    regs[regDst] = result
+            
+            # always ensure $0 is zero
+            regs[0] = 0
+
+            # wrap pc
+            pc = pc & 0b1111111111111
+
+        except IndexError:
+            print(f"Error: PC {pc} out of bounds, halting")
+            running = False
+        except Exception as e:
+            print(f"Error occured: {e}, halting")
+            running = False
+        
     # TODO: your code here. print the final state of the simulator before ending, using print_state
+    print_state(pc, regs, mem, 128)
 
 if __name__ == "__main__":
     main()
-#ra0Eequ6ucie6Jei0koh6phishohm9
