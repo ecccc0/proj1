@@ -90,6 +90,7 @@ def main():
         try:
             # (and sub or and slt jr)
             if opcode == 0b000:
+                result = None
                 # lass 4 bits
                 func = instr % 0b1111
                 # 3 register fileds
@@ -188,7 +189,7 @@ def main():
                 valImm = imm7 & 0b1111111111111111
                 result = 1 if valSrc < valImm else 0
                 if regDst != 0:
-                    regs[regDst] = result
+                    regs[regDst] = result & 0b1111111111111111
             
             # always ensure $0 is zero
             regs[0] = 0
